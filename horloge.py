@@ -1,51 +1,67 @@
-from datetime import datetime
-import time
+import msvcrt
+from time import sleep, time
 
-def afficherheure_24h(heure_tuple):
-    formatheure = f"{heure_tuple[0]:02d}:{heure_tuple[1]:02d}:{heure_tuple[2]:02d}"
-    print(formatheure, end="\r")
+pause = False
 
-def afficherheure_am_pm(heure_tuple):
-    am_pm = "AM" if heure_tuple[0] < 12 else "PM"
-    heure12h = (heure_tuple[0] % 12) or 12
-    formatheure = f"{heure12h:02d}:{heure_tuple[1]:02d}:{heure_tuple[2]:02d} {am_pm}"
-    print(formatheure, end="\r")
+def toggle_pause():
+    global pause
+    pause = not pause
+    print("\nL'horloge est en pause" if pause else "\nReprise de l'horloge")
 
-def alarme():
-    choixformatheure = input("Choisissez le format de l'alarme ('AM/PM' ou '24H'): ").lower()
-    
-    if choixformatheure not in ['am/pm', '24h']:
-        print("'AM/PM' ou '24H' rien d'autre, merci.")
-        return
+def pm_or_24h():
+    clock_type = input("Entrez le type d'affichage de l'heure (AMPM/24H) : ")
+    return clock_type.upper()
 
-    if choixformatheure == 'am/pm':
-        choix_am_pm = input("Choisissez AM ou PM pour l'alarme: ").upper()
-        if choix_am_pm not in ['AM', 'PM']:
-            print("Choix invalide pour AM/PM.")
-            return
-        heure_alarme = tuple(map(int, input(f"Entrez l'heure d'alarme (format sur 12H HH:MM:SS {choix_am_pm}): ").split(':')))
-    else:
-        heure_alarme = tuple(map(int, input(f"Entrez l'heure d'alarme (format sur 24H HH:MM:SS): ").split(':')))
+def dalarme(heure_alarme, minute_alarme, seconde_alarme, heure, minute, seconde):
+    if heure_alarme == heure and minute_alarme == minute and seconde_alarme == seconde:
+        print("\nL'alarme a sonné")
+
+def afficher_heure(heure_base, alarme):
+    heure, minute, seconde = heure_base
+    heure_alarme, minute_alarme, seconde_alarme = alarme
+    dernier_temps = time()
+    affichage = pm_or_24h()
 
     while True:
-        heuremaintenant = datetime.now().time()
+        if msvcrt.kbhit():
+            key = msvcrt.getch().decode('utf-8')
+            if key.lower() == 'p':
+                toggle_pause()
 
-        if choixformatheure == 'am/pm':
-            heure_alarme_24h = heure_alarme
-            if choix_am_pm == 'PM':
-                heure_alarme_24h = ((heure_alarme[0] + 12) % 24, heure_alarme[1], heure_alarme[2])
+        if pause:
+            sleep(1)
+            continue
 
-            afficherheure_am_pm((heuremaintenant.hour, heuremaintenant.minute, heuremaintenant.second))
-        elif choixformatheure == '24h':
-            heure_alarme_24h = heure_alarme
-            afficherheure_24h((heuremaintenant.hour, heuremaintenant.minute, heuremaintenant.second))
-        else:
-            print("'AM/PM' ou '24H' rien d'autre, merci.")
-            return
-        
-        if (heuremaintenant.hour, heuremaintenant.minute, heuremaintenant.second) == heure_alarme_24h:
-            print("\nL'ALARME MARCHE, LET'S GO!")
+        temps_actuel = time()
+        temps_ecoule = temps_actuel - dernier_temps
 
-        time.sleep(1)
+        if temps_ecoule >= 1:
+            seconde += 1
+            dernier_temps = temps_actuel
+            if seconde >= 60:
+                minute += seconde // 60
+                seconde %= 60
+                if minute >= 60:
+                    heure += minute // 60
+                    minute %= 60
+                    if heure >= 24:
+                        heure %= 24
 
-alarme()
+            if affichage == "AMPM":
+                am_pm_indicator = "PM" if heure >= 12 else "AM"
+                heure_affichage = heure if heure <= 12 else heure - 12
+                if heure_affichage == 0:
+                    heure_affichage = 12
+
+                print(f"\r\033[K{heure_affichage:02d}:{minute:02d}:{seconde:02d} {am_pm_indicator}", end="", flush=True)
+            else:
+                print(f"\r\033[K{heure:02d}:{minute:02d}:{seconde:02d}", end="", flush=True)
+
+        dalarme(heure_alarme, minute_alarme, seconde_alarme, heure, minute, seconde)
+
+        sleep(1)
+
+
+heure = (13, 30, 0)
+halarme = (13, 30, 10)
+afficher_heure(heure, halarme)
